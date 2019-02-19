@@ -30,19 +30,20 @@ class BPFArithOp<bits<4> val> {
   bits<4> Value = val;
 }
 
-def BPF_ADD  : BPFArithOp<0x0>;
-def BPF_SUB  : BPFArithOp<0x1>;
-def BPF_MUL  : BPFArithOp<0x2>;
-def BPF_DIV  : BPFArithOp<0x3>;
-def BPF_OR   : BPFArithOp<0x4>;
-def BPF_AND  : BPFArithOp<0x5>;
-def BPF_LSH  : BPFArithOp<0x6>;
-def BPF_RSH  : BPFArithOp<0x7>;
-def BPF_NEG  : BPFArithOp<0x8>;
-def BPF_XOR  : BPFArithOp<0xa>;
-def BPF_MOV  : BPFArithOp<0xb>;
-def BPF_ARSH : BPFArithOp<0xc>;
-def BPF_END  : BPFArithOp<0xd>;
+def BPF_ADD   : BPFArithOp<0x0>;
+def BPF_SUB   : BPFArithOp<0x1>;
+def BPF_MUL   : BPFArithOp<0x2>;
+def BPF_DIV   : BPFArithOp<0x3>;
+def BPF_OR    : BPFArithOp<0x4>;
+def BPF_AND   : BPFArithOp<0x5>;
+def BPF_LSH   : BPFArithOp<0x6>;
+def BPF_RSH   : BPFArithOp<0x7>;
+def BPF_NEG   : BPFArithOp<0x8>;
+def BPF_XOR   : BPFArithOp<0xa>;
+def BPF_MOV   : BPFArithOp<0xb>;
+def BPF_ARSH  : BPFArithOp<0xc>;
+def BPF_END   : BPFArithOp<0xd>;
+def BPF_ELOOP : BPFArithOp<0xe>;
 
 class BPFEndDir<bits<1> val> {
   bits<1> Value = val;

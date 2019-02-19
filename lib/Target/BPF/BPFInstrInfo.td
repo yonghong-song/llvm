@@ -510,6 +510,15 @@ class NOP_I<string OpcodeStr>
 let hasSideEffects = 0 in
   def NOP : NOP_I<"nop">;
 
+class END_LOOP_I<string AsmStr>
+    : TYPE_ALU_JMP<BPF_ELOOP.Value, BPF_K.Value,
+                   (outs), (ins), AsmStr, []> {
+  let BPFClass = BPF_ALU64;
+}
+
+let hasSideEffects = 0 in
+  def END_LOOP : END_LOOP_I<"end_loop">;
+
 class RET<string OpcodeStr>
     : TYPE_ALU_JMP<BPF_EXIT.Value, BPF_K.Value,
                    (outs),

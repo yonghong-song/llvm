@@ -33,6 +33,7 @@ extern "C" void LLVMInitializeBPFTarget() {
   RegisterTargetMachine<BPFTargetMachine> Z(getTheBPFTarget());
 
   PassRegistry &PR = *PassRegistry::getPassRegistry();
+  initializeBPFMIPreEmitLoopInstGenPass(PR);
   initializeBPFMIPeepholePass(PR);
 }
 
@@ -108,6 +109,8 @@ void BPFPassConfig::addMachineSSAOptimization() {
 
 void BPFPassConfig::addPreEmitPass() {
   const BPFSubtarget *Subtarget = getBPFTargetMachine().getSubtargetImpl();
+
+  addPass(createBPFMIPreEmitLoopInstGenPass());
 
   addPass(createBPFMIPreEmitCheckingPass());
   if (getOptLevel() != CodeGenOpt::None)

@@ -13,6 +13,7 @@
 #include "BTFDebug.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCObjectFileInfo.h"
@@ -585,8 +586,8 @@ void BTFDebug::emitBTFExtSection() {
   emitCommonHeader();
   OS.EmitIntValue(BTF::ExtHeaderSize, 4);
 
-  // Account for FuncInfo/LineInfo record size as well.
-  uint32_t FuncLen = 4, LineLen = 4;
+  // Account for FuncInfo/LineInfo/LoopInfo record size as well.
+  uint32_t FuncLen = 4, LineLen = 4, LoopLen = 4;
   for (const auto &FuncSec : FuncInfoTable) {
     FuncLen += BTF::SecFuncInfoSize;
     FuncLen += FuncSec.second.size() * BTF::BPFFuncInfoSize;
@@ -595,11 +596,17 @@ void BTFDebug::emitBTFExtSection() {
     LineLen += BTF::SecLineInfoSize;
     LineLen += LineSec.second.size() * BTF::BPFLineInfoSize;
   }
+  for (const auto &LoopSec : LoopInfoTable) {
+    LoopLen += BTF::SecLoopInfoSize;
+    LoopLen += LoopSec.second.size() * BTF::BPFLoopInfoSize;
+  }
 
   OS.EmitIntValue(0, 4);
   OS.EmitIntValue(FuncLen, 4);
   OS.EmitIntValue(FuncLen, 4);
   OS.EmitIntValue(LineLen, 4);
+  OS.EmitIntValue(FuncLen + LineLen, 4);
+  OS.EmitIntValue(LoopLen, 4);
 
   // Emit func_info table.
   OS.AddComment("FuncInfo");
@@ -630,6 +637,26 @@ void BTFDebug::emitBTFExtSection() {
       OS.AddComment("Line " + std::to_string(LineInfo.LineNum) + " Col " +
                     std::to_string(LineInfo.ColumnNum));
       OS.EmitIntValue(LineInfo.LineNum << 10 | LineInfo.ColumnNum, 4);
+    }
+  }
+
+  // Emit loop_info table.
+  OS.AddComment("LoopInfo");
+  OS.EmitIntValue(BTF::BPFLoopInfoSize, 4);
+  for (const auto &LoopSec : LoopInfoTable) {
+    OS.AddComment("LoopInfo section string offset=" +
+                  std::to_string(LoopSec.first));
+    OS.EmitIntValue(LoopSec.first, 4);
+    OS.EmitIntValue(LoopSec.second.size(), 4);
+    for (const auto &LoopInfo : LoopSec.second) {
+      OS.AddComment("First Insn");
+      Asm->EmitLabelReference(LoopInfo.HeaderLabel, 4);
+      OS.AddComment("Exit Insn");
+      Asm->EmitLabelReference(LoopInfo.ExitLabel, 4);
+      OS.AddComment("Depth " + std::to_string(LoopInfo.Depth));
+      OS.EmitIntValue(LoopInfo.Depth, 4);
+      OS.AddComment("NumBackEdges " + std::to_string(LoopInfo.NumBackEdges));
+      OS.EmitIntValue(LoopInfo.NumBackEdges, 4);
     }
   }
 }
@@ -688,6 +715,7 @@ void BTFDebug::endFunctionImpl(const MachineFunction *MF) {
   SkipInstruction = false;
   LineInfoGenerated = false;
   SecNameOff = 0;
+  LoopsInProcessing.clear();
 }
 
 void BTFDebug::beginInstruction(const MachineInstr *MI) {
@@ -696,6 +724,51 @@ void BTFDebug::beginInstruction(const MachineInstr *MI) {
   if (SkipInstruction || MI->isMetaInstruction() ||
       MI->getFlag(MachineInstr::FrameSetup))
     return;
+
+  MCSymbol *TempSym = nullptr;
+
+  const MachineBasicBlock *MBB = MI->getParent();
+  if (Asm->MLI) {
+    const MachineLoop *Loop = Asm->MLI->getLoopFor(MBB);
+    if (Loop) {
+      uint32_t idx;
+
+      if (LoopsInProcessing.find(Loop) != LoopsInProcessing.end()) {
+        idx = LoopsInProcessing[Loop];
+      } else {
+        BTFLoopInfo LoopInfo;
+        LoopInfo.HeaderLabel = nullptr;
+        LoopInfo.ExitLabel = nullptr;
+        LoopInfo.Depth = Loop->getLoopDepth();
+        LoopInfo.NumBackEdges = Loop->getNumBackEdges();
+
+        idx = LoopInfoTable[SecNameOff].size();
+        LoopsInProcessing[Loop] = idx;
+        LoopInfoTable[SecNameOff].push_back(LoopInfo);
+      }
+
+      if (LoopInfoTable[SecNameOff][idx].HeaderLabel == nullptr) {
+        MachineBasicBlock *Header = Loop->getHeader();
+        if (Header == MBB) {
+          if (!TempSym) {
+            TempSym = OS.getContext().createTempSymbol();
+            OS.EmitLabel(TempSym);
+          }
+          LoopInfoTable[SecNameOff][idx].HeaderLabel = TempSym;
+        }
+      }
+
+      if (LoopInfoTable[SecNameOff][idx].ExitLabel == nullptr && MI->isBranch()) {
+        if (Loop->isLoopLatch(MBB)) {
+          if (!TempSym) {
+            TempSym = OS.getContext().createTempSymbol();
+            OS.EmitLabel(TempSym);
+          }
+          LoopInfoTable[SecNameOff][idx].ExitLabel = TempSym;
+        }
+      }
+    }
+  }
 
   if (MI->isInlineAsm()) {
     // Count the number of register definitions to find the asm string.
@@ -727,12 +800,14 @@ void BTFDebug::beginInstruction(const MachineInstr *MI) {
   }
 
   // Create a temporary label to remember the insn for lineinfo.
-  MCSymbol *LineSym = OS.getContext().createTempSymbol();
-  OS.EmitLabel(LineSym);
+  if (!TempSym) {
+    TempSym = OS.getContext().createTempSymbol();
+    OS.EmitLabel(TempSym);
+  }
 
   // Construct the lineinfo.
   auto SP = DL.get()->getScope()->getSubprogram();
-  constructLineInfo(SP, LineSym, DL.getLine(), DL.getCol());
+  constructLineInfo(SP, TempSym, DL.getLine(), DL.getCol());
 
   LineInfoGenerated = true;
   PrevInstLoc = DL;

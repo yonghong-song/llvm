@@ -17,7 +17,7 @@
 ///
 /// The binary layout for .BTF.ext section:
 ///   struct ExtHeader
-///   FuncInfo and LineInfo subsections
+///   FuncInfo, LineInfo and LoopInfo subsections
 /// The FuncInfo subsection is defined as below:
 ///   BTFFuncInfo Size
 ///   struct SecFuncInfo for ELF section #1
@@ -31,6 +31,13 @@
 ///   A number of struct BPFLineInfo for ELF section #1
 ///   struct SecLineInfo for ELF section #2
 ///   A number of struct BPFLineInfo for ELF section #2
+///   ...
+/// The LoopInfo subsection is defined as below:
+///   BPFLoopInfo Size
+///   struct SecLoopInfo for ELF section #1
+///   A number of struct BPFLoopInfo for ELF section #1
+///   struct SecLoopInfo for ELF section #2
+///   A number of struct BPFLoopInfo for ELF section #2
 ///   ...
 ///
 /// The section formats are also defined at
@@ -57,8 +64,10 @@ enum {
   BTFParamSize = 8,
   SecFuncInfoSize = 8,
   SecLineInfoSize = 8,
+  SecLoopInfoSize = 8,
   BPFFuncInfoSize = 8,
-  BPFLineInfoSize = 16
+  BPFLineInfoSize = 16,
+  BPFLoopInfoSize = 16,
 };
 
 /// The .BTF section header definition.
@@ -173,6 +182,8 @@ struct ExtHeader {
   uint32_t FuncInfoLen; ///< Length of func info section
   uint32_t LineInfoOff; ///< Offset of line info section
   uint32_t LineInfoLen; ///< Length of line info section
+  uint32_t LoopInfoOff; ///< Offset of loop info section
+  uint32_t LoopInfoLen; ///< Length of loop info section
 };
 
 /// Specifying one function info.
@@ -200,6 +211,20 @@ struct BPFLineInfo {
 struct SecLineInfo {
   uint32_t SecNameOff;  ///< Section name index in the .BTF string tble
   uint32_t NumLineInfo; ///< Number of line info's in this section
+};
+
+/// Specifying one loop info.
+struct BPFLoopInfo {
+  uint32_t EntryInsnOffset; ///< Loop entry byte offset in this section
+  uint32_t ExitInsnOffset;  ///< Loop exit byte offset in this section
+  uint32_t Depth;           ///< Loop depth, outmost loop has depth 1
+  uint32_t NumBackEdges;    ///< Number of back edges
+};
+
+/// Specifying loop info's in one section.
+struct SecLoopInfo {
+  uint32_t SecNameOff;  ///< Section name index in the .BTF string tble
+  uint32_t NumLoopInfo; ///< Number of loop info's in this section
 };
 
 } // End namespace BTF.

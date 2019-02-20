@@ -27,6 +27,7 @@ class DIType;
 class MCStreamer;
 class MCSymbol;
 class MachineFunction;
+class MachineLoop;
 
 /// The base class for BTF type generation.
 class BTFTypeBase {
@@ -188,6 +189,14 @@ struct BTFLineInfo {
   uint32_t ColumnNum;   ///< the column number
 };
 
+/// Represent one loop info.
+struct BTFLoopInfo {
+  const MCSymbol *HeaderLabel;  ///< MCSymbol identifying the header block
+  const MCSymbol *ExitLabel;    ///< MCSymbol identifying the last block
+  uint32_t Depth;               ///< Loop Depth
+  uint32_t NumBackEdges;        ///< Number of back edges
+};
+
 /// Collect and emit BTF information.
 class BTFDebug : public DebugHandlerBase {
   MCStreamer &OS;
@@ -200,7 +209,9 @@ class BTFDebug : public DebugHandlerBase {
   std::unordered_map<const DIType *, uint32_t> DIToIdMap;
   std::unordered_map<uint32_t, std::vector<BTFFuncInfo>> FuncInfoTable;
   std::unordered_map<uint32_t, std::vector<BTFLineInfo>> LineInfoTable;
+  std::unordered_map<uint32_t, std::vector<BTFLoopInfo>> LoopInfoTable;
   StringMap<std::vector<std::string>> FileContent;
+  std::unordered_map<const MachineLoop *, uint32_t> LoopsInProcessing;
 
   /// Add types to TypeEntries.
   /// @{

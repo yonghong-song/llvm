@@ -32,10 +32,12 @@ class MachineFunction;
 class BTFTypeBase {
 protected:
   uint8_t Kind;
+  bool IsCompleted;
   uint32_t Id;
   struct BTF::CommonType BTFType;
 
 public:
+  BTFTypeBase() : IsCompleted(false) {}
   virtual ~BTFTypeBase() = default;
   void setId(uint32_t Id) { this->Id = Id; }
   uint32_t getId() { return Id; }
@@ -108,6 +110,7 @@ public:
   uint32_t getSize() { return BTFTypeBase::getSize() + BTF::BTFArraySize; }
   void completeType(BTFDebug &BDebug);
   void emitType(MCStreamer &OS);
+  void getLocInfo(uint32_t Loc, uint32_t &LocOffset, uint32_t &ElementTypeId);
 };
 
 /// Handle struct/union type.
@@ -124,6 +127,9 @@ public:
   }
   void completeType(BTFDebug &BDebug);
   void emitType(MCStreamer &OS);
+  std::string getName();
+  void getMemberInfo(uint32_t Loc, uint32_t &Offset, uint32_t &MemberType);
+  uint32_t getStructSize();
 };
 
 /// Handle function pointer.
@@ -219,6 +225,14 @@ struct BTFLineInfo {
   uint32_t ColumnNum;   ///< the column number
 };
 
+/// Represent one offset relocation.
+struct BTFOffsetReloc {
+  const MCSymbol *Label;  ///< MCSymbol identifying insn for the reloc
+  std::string TypeName;   ///< Type name
+  uint32_t TypeID;        ///< Type ID
+  uint32_t OffsetNameOff; ///< The string to traverse types
+};
+
 /// Collect and emit BTF information.
 class BTFDebug : public DebugHandlerBase {
   MCStreamer &OS;
@@ -231,9 +245,13 @@ class BTFDebug : public DebugHandlerBase {
   std::unordered_map<const DIType *, uint32_t> DIToIdMap;
   std::unordered_map<uint32_t, std::vector<BTFFuncInfo>> FuncInfoTable;
   std::unordered_map<uint32_t, std::vector<BTFLineInfo>> LineInfoTable;
+  std::unordered_map<uint32_t, std::vector<BTFOffsetReloc>> OffsetRelocTable;
   StringMap<std::vector<std::string>> FileContent;
   std::unordered_map<std::string, std::unique_ptr<BTFKindDataSec>>
       DataSecEntries;
+  std::vector<BTFTypeStruct *> StructTypes;
+  std::vector<BTFTypeArray *> ArrayTypes;
+  std::unordered_map<std::string, int64_t> AccessOffsets;
 
   /// Add types to TypeEntries.
   /// @{
@@ -273,6 +291,20 @@ class BTFDebug : public DebugHandlerBase {
   /// Generate types and variables for globals.
   void processGlobals(void);
 
+  /// Generate one offset relocation record.
+  void generateOffsetReloc(const MachineInstr *MI, const MCSymbol *ORSym,
+                           std::string TypeName);
+
+  /// Set the to-be-traversed Struct/Array Type based on TypeId.
+  void setTypeFromId(uint32_t TypeId, BTFTypeStruct **PrevStructType,
+                     BTFTypeArray **PrevArrayType);
+
+  /// Populating unprocessed struct type.
+  void populateStructType(const MachineInstr *MI);
+
+  /// Process LD_imm64 instructions.
+  void processLDimm64(const MachineInstr *MI);
+
   /// Emit common header of .BTF and .BTF.ext sections.
   void emitCommonHeader();
 
@@ -291,6 +323,9 @@ protected:
 
 public:
   BTFDebug(AsmPrinter *AP);
+
+  ///
+  bool InstLower(const MachineInstr *MI, MCInst &OutMI);
 
   /// Get the special array index type id.
   uint32_t getArrayIndexTypeId() {

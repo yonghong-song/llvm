@@ -17,7 +17,7 @@
 ///
 /// The binary layout for .BTF.ext section:
 ///   struct ExtHeader
-///   FuncInfo and LineInfo subsections
+///   FuncInfo, LineInfo and OffsetReloc subsections
 /// The FuncInfo subsection is defined as below:
 ///   BTFFuncInfo Size
 ///   struct SecFuncInfo for ELF section #1
@@ -31,6 +31,13 @@
 ///   A number of struct BPFLineInfo for ELF section #1
 ///   struct SecLineInfo for ELF section #2
 ///   A number of struct BPFLineInfo for ELF section #2
+///   ...
+/// The OffsetReloc subsection is defined as below:
+///   BPFOffsetReloc Size
+///   struct SecLOffsetReloc for ELF section #1
+///   A number of struct BPFOffsetReloc for ELF section #1
+///   struct SecOffsetReloc for ELF section #2
+///   A number of struct BPFOffsetReloc for ELF section #2
 ///   ...
 ///
 /// The section formats are also defined at
@@ -58,8 +65,10 @@ enum {
   BTFDataSecVarSize = 12,
   SecFuncInfoSize = 8,
   SecLineInfoSize = 8,
+  SecOffsetRelocSize = 8,
   BPFFuncInfoSize = 8,
-  BPFLineInfoSize = 16
+  BPFLineInfoSize = 16,
+  BPFOffsetRelocSize = 12,
 };
 
 /// The .BTF section header definition.
@@ -195,6 +204,8 @@ struct ExtHeader {
   uint32_t FuncInfoLen; ///< Length of func info section
   uint32_t LineInfoOff; ///< Offset of line info section
   uint32_t LineInfoLen; ///< Length of line info section
+  uint32_t OffsetRelocOff; ///< Offset of offset reloc section
+  uint32_t OffsetRelocLen; ///< Length of offset reloc section
 };
 
 /// Specifying one function info.
@@ -222,6 +233,19 @@ struct BPFLineInfo {
 struct SecLineInfo {
   uint32_t SecNameOff;  ///< Section name index in the .BTF string tble
   uint32_t NumLineInfo; ///< Number of line info's in this section
+};
+
+/// Specifying one offset relocation.
+struct BPFOffsetReloc {
+  uint32_t InsnOffset;    ///< Byte offset in this section
+  uint32_t TypeID;        ///< TypeID for the relocation
+  uint32_t OffsetNameOff; ///< The string to traverse types
+};
+
+/// Specifying offset relocation's in one section.
+struct SecOffsetReloc {
+  uint32_t SecNameOff;     ///< Section name index in the .BTF string tble
+  uint32_t NumOffsetReloc; ///< Number of offset reloc's in this section
 };
 
 } // End namespace BTF.

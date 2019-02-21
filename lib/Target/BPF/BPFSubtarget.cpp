@@ -38,6 +38,7 @@ void BPFSubtarget::initializeEnvironment() {
   HasJmp32 = false;
   HasAlu32 = false;
   UseDwarfRIS = false;
+  HasOffsetReloc = true;
 }
 
 void BPFSubtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {

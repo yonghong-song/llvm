@@ -19,6 +19,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/TargetFolder.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
@@ -302,6 +303,7 @@ private:
   // Required analyses.
   AssumptionCache &AC;
   TargetLibraryInfo &TLI;
+  TargetTransformInfo &TTI;
   DominatorTree &DT;
   const DataLayout &DL;
   const SimplifyQuery SQ;
@@ -318,11 +320,11 @@ private:
 public:
   InstCombiner(InstCombineWorklist &Worklist, BuilderTy &Builder,
                bool MinimizeSize, bool ExpensiveCombines, AliasAnalysis *AA,
-               AssumptionCache &AC, TargetLibraryInfo &TLI, DominatorTree &DT,
+               AssumptionCache &AC, TargetLibraryInfo &TLI, TargetTransformInfo &TTI, DominatorTree &DT,
                OptimizationRemarkEmitter &ORE, BlockFrequencyInfo *BFI,
                ProfileSummaryInfo *PSI, const DataLayout &DL, LoopInfo *LI)
       : Worklist(Worklist), Builder(Builder), MinimizeSize(MinimizeSize),
-        ExpensiveCombines(ExpensiveCombines), AA(AA), AC(AC), TLI(TLI), DT(DT),
+        ExpensiveCombines(ExpensiveCombines), AA(AA), AC(AC), TLI(TLI), TTI(TTI), DT(DT),
         DL(DL), SQ(DL, &TLI, &DT, &AC), ORE(ORE), BFI(BFI), PSI(PSI), LI(LI) {}
 
   /// Run the combiner over the entire worklist until it is empty.

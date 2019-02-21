@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "BPFMCInstLower.h"
+#include "MCTargetDesc/BPFMCTargetDesc.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineInstr.h"

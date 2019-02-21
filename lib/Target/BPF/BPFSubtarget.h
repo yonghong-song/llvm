@@ -57,6 +57,9 @@ protected:
   // whether we should enable MCAsmInfo DwarfUsesRelocationsAcrossSections
   bool UseDwarfRIS;
 
+  // whether struct/union offset relocation should be generated.
+  bool HasOffsetReloc;
+
 public:
   // This constructor initializes the data members to match that
   // of the specified triple.
@@ -72,6 +75,7 @@ public:
   bool getHasJmp32() const { return HasJmp32; }
   bool getHasAlu32() const { return HasAlu32; }
   bool getUseDwarfRIS() const { return UseDwarfRIS; }
+  bool getHasOffsetReloc() const { return HasOffsetReloc; }
 
   const BPFInstrInfo *getInstrInfo() const override { return &InstrInfo; }
   const BPFFrameLowering *getFrameLowering() const override {

@@ -1021,6 +1021,9 @@ public:
   /// \returns True if the target wants to expand the given reduction intrinsic
   /// into a shuffle sequence.
   bool shouldExpandReduction(const IntrinsicInst *II) const;
+
+  /// \returns True if the target wants to preserve all GEPs even if the offset is 0.
+  bool shouldPreserveAllGEPs() const;
   /// @}
 
 private:
@@ -1232,6 +1235,7 @@ public:
                                      ReductionFlags) const = 0;
   virtual bool shouldExpandReduction(const IntrinsicInst *II) const = 0;
   virtual int getInstructionLatency(const Instruction *I) = 0;
+  virtual bool shouldPreserveAllGEPs() const = 0;
 };
 
 template <typename T>
@@ -1653,6 +1657,9 @@ public:
   }
   int getInstructionLatency(const Instruction *I) override {
     return Impl.getInstructionLatency(I);
+  }
+  bool shouldPreserveAllGEPs() const override {
+    return Impl.shouldPreserveAllGEPs();
   }
 };
 

@@ -32,6 +32,8 @@ public:
     return &Subtarget;
   }
 
+  TargetTransformInfo getTargetTransformInfo(const Function &F) override;
+
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
   TargetLoweringObjectFile *getObjFileLowering() const override {

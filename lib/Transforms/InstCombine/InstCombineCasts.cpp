@@ -1776,7 +1776,8 @@ Instruction *InstCombiner::commonPointerCastTransforms(CastInst &CI) {
   if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(Src)) {
     // If casting the result of a getelementptr instruction with no offset, turn
     // this into a cast of the original pointer!
-    if (GEP->hasAllZeroIndices() &&
+    if (!TTI.shouldPreserveAllGEPs() &&
+        GEP->hasAllZeroIndices() &&
         // If CI is an addrspacecast and GEP changes the poiner type, merging
         // GEP into CI would undo canonicalizing addrspacecast with different
         // pointer types, causing infinite loops.

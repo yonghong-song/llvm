@@ -3453,7 +3453,7 @@ static bool prepareICWorklistFromFunction(Function &F, const DataLayout &DL,
 
 static bool combineInstructionsOverFunction(
     Function &F, InstCombineWorklist &Worklist, AliasAnalysis *AA,
-    AssumptionCache &AC, TargetLibraryInfo &TLI, DominatorTree &DT,
+    AssumptionCache &AC, TargetLibraryInfo &TLI, TargetTransformInfo &TTI, DominatorTree &DT,
     OptimizationRemarkEmitter &ORE, bool ExpensiveCombines = true,
     LoopInfo *LI = nullptr) {
   auto &DL = F.getParent()->getDataLayout();
@@ -3485,7 +3485,7 @@ static bool combineInstructionsOverFunction(
     MadeIRChange |= prepareICWorklistFromFunction(F, DL, &TLI, Worklist);
 
     InstCombiner IC(Worklist, Builder, F.optForMinSize(), ExpensiveCombines, AA,
-                    AC, TLI, DT, ORE, DL, LI);
+                    AC, TLI, TTI, DT, ORE, DL, LI);
     IC.MaxArraySizeForCombine = MaxArraySize;
 
     if (!IC.run())
@@ -3500,12 +3500,13 @@ PreservedAnalyses InstCombinePass::run(Function &F,
   auto &AC = AM.getResult<AssumptionAnalysis>(F);
   auto &DT = AM.getResult<DominatorTreeAnalysis>(F);
   auto &TLI = AM.getResult<TargetLibraryAnalysis>(F);
+  auto &TTI = AM.getResult<TargetIRAnalysis>(F);
   auto &ORE = AM.getResult<OptimizationRemarkEmitterAnalysis>(F);
 
   auto *LI = AM.getCachedResult<LoopAnalysis>(F);
 
   auto *AA = &AM.getResult<AAManager>(F);
-  if (!combineInstructionsOverFunction(F, Worklist, AA, AC, TLI, DT, ORE,
+  if (!combineInstructionsOverFunction(F, Worklist, AA, AC, TLI, TTI, DT, ORE,
                                        ExpensiveCombines, LI))
     // No changes, all analyses are preserved.
     return PreservedAnalyses::all();
@@ -3524,6 +3525,7 @@ void InstructionCombiningPass::getAnalysisUsage(AnalysisUsage &AU) const {
   AU.addRequired<AAResultsWrapperPass>();
   AU.addRequired<AssumptionCacheTracker>();
   AU.addRequired<TargetLibraryInfoWrapperPass>();
+  AU.addRequired<TargetTransformInfoWrapperPass>();
   AU.addRequired<DominatorTreeWrapperPass>();
   AU.addRequired<OptimizationRemarkEmitterWrapperPass>();
   AU.addPreserved<DominatorTreeWrapperPass>();
@@ -3540,6 +3542,7 @@ bool InstructionCombiningPass::runOnFunction(Function &F) {
   auto AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
   auto &AC = getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
   auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+  auto &TTI = getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
   auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   auto &ORE = getAnalysis<OptimizationRemarkEmitterWrapperPass>().getORE();
 
@@ -3547,7 +3550,7 @@ bool InstructionCombiningPass::runOnFunction(Function &F) {
   auto *LIWP = getAnalysisIfAvailable<LoopInfoWrapperPass>();
   auto *LI = LIWP ? &LIWP->getLoopInfo() : nullptr;
 
-  return combineInstructionsOverFunction(F, Worklist, AA, AC, TLI, DT, ORE,
+  return combineInstructionsOverFunction(F, Worklist, AA, AC, TLI, TTI, DT, ORE,
                                          ExpensiveCombines, LI);
 }
 
@@ -3557,6 +3560,7 @@ INITIALIZE_PASS_BEGIN(InstructionCombiningPass, "instcombine",
                       "Combine redundant instructions", false, false)
 INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(TargetTransformInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(GlobalsAAWrapperPass)

@@ -15,11 +15,16 @@
 namespace llvm {
 class BPFTargetMachine;
 
+ModulePass *createBPFAbstractMemberAccess();
+
 FunctionPass *createBPFISelDag(BPFTargetMachine &TM);
+FunctionPass *createBPFMIOffsetRelocPass();
 FunctionPass *createBPFMIPeepholePass();
 FunctionPass *createBPFMIPreEmitPeepholePass();
 FunctionPass *createBPFMIPreEmitCheckingPass();
 
+void initializeBPFAbstractMemberAccessPass(PassRegistry&);
+void initializeBPFMIOffsetRelocPass(PassRegistry&);
 void initializeBPFMIPeepholePass(PassRegistry&);
 void initializeBPFMIPreEmitPeepholePass(PassRegistry&);
 void initializeBPFMIPreEmitCheckingPass(PassRegistry&);

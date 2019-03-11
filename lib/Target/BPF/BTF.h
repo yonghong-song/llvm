@@ -79,6 +79,12 @@ enum : uint32_t {
   MAX_VLEN = 0xffff         ///< Max # of struct/union/enum members or func args
 };
 
+enum : uint8_t {
+  FWD_STRUCT = 0,
+  FWD_ENUM = 1,
+  FWD_UNION = 2,
+};
+
 enum TypeKinds : uint8_t {
 #define HANDLE_BTF_KIND(ID, NAME) BTF_KIND_##NAME = ID,
 #include "BTF.def"
@@ -94,8 +100,8 @@ struct CommonType {
   /// Bits  0-15: vlen (e.g. # of struct's members)
   /// Bits 16-23: unused
   /// Bits 24-27: kind (e.g. int, ptr, array...etc)
-  /// Bits 28-30: unused
-  /// Bit     31: kind_flag, currently used by
+  /// Bits 28-29: unused
+  /// Bits 30-31: kind_flag, currently used by
   ///             struct, union and fwd
   uint32_t Info;
 

@@ -80,9 +80,9 @@ void BTFTypeDerived::completeType(BTFDebug &BDebug) {
 void BTFTypeDerived::emitType(MCStreamer &OS) { BTFTypeBase::emitType(OS); }
 
 /// Represent a struct/union forward declaration.
-BTFTypeFwd::BTFTypeFwd(StringRef Name, bool IsUnion) : Name(Name) {
+BTFTypeFwd::BTFTypeFwd(StringRef Name, uint8_t FwdedType) : Name(Name) {
   Kind = BTF::BTF_KIND_FWD;
-  BTFType.Info = IsUnion << 31 | Kind << 24;
+  BTFType.Info = FwdedType << 30 | Kind << 24;
   BTFType.Type = 0;
 }
 
@@ -432,8 +432,8 @@ void BTFDebug::visitEnumType(const DICompositeType *CTy) {
 }
 
 /// Handle structure/union forward declarations.
-void BTFDebug::visitFwdDeclType(const DICompositeType *CTy, bool IsUnion) {
-  auto TypeEntry = llvm::make_unique<BTFTypeFwd>(CTy->getName(), IsUnion);
+void BTFDebug::visitFwdDeclType(const DICompositeType *CTy, uint8_t FwdedType) {
+  auto TypeEntry = llvm::make_unique<BTFTypeFwd>(CTy->getName(), FwdedType);
   addType(std::move(TypeEntry), CTy);
 }
 
@@ -443,13 +443,17 @@ void BTFDebug::visitCompositeType(const DICompositeType *CTy) {
   if (Tag == dwarf::DW_TAG_structure_type || Tag == dwarf::DW_TAG_union_type) {
     // Handle forward declaration differently as it does not have members.
     if (CTy->isForwardDecl())
-      visitFwdDeclType(CTy, Tag == dwarf::DW_TAG_union_type);
+      visitFwdDeclType(CTy, Tag == dwarf::DW_TAG_union_type ? BTF::FWD_UNION : BTF::FWD_STRUCT);
     else
       visitStructType(CTy, Tag == dwarf::DW_TAG_structure_type);
   } else if (Tag == dwarf::DW_TAG_array_type)
     visitArrayType(CTy);
-  else if (Tag == dwarf::DW_TAG_enumeration_type)
-    visitEnumType(CTy);
+  else if (Tag == dwarf::DW_TAG_enumeration_type) {
+    if (CTy->isForwardDecl())
+      visitFwdDeclType(CTy, BTF::FWD_ENUM);
+    else
+      visitEnumType(CTy);
+  }
 }
 
 /// Handle pointer, typedef, const, volatile, restrict and member types.

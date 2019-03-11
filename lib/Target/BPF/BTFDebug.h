@@ -66,7 +66,7 @@ class BTFTypeFwd : public BTFTypeBase {
   StringRef Name;
 
 public:
-  BTFTypeFwd(StringRef Name, bool IsUnion);
+  BTFTypeFwd(StringRef Name, uint8_t FwdedType);
   void completeType(BTFDebug &BDebug);
   void emitType(MCStreamer &OS);
 };
@@ -218,7 +218,7 @@ class BTFDebug : public DebugHandlerBase {
       const DISubroutineType *STy, bool ForSubprog,
       const std::unordered_map<uint32_t, StringRef> &FuncArgNames,
       uint32_t &TypeId);
-  void visitFwdDeclType(const DICompositeType *CTy, bool IsUnion);
+  void visitFwdDeclType(const DICompositeType *CTy, uint8_t FwdedType);
   void visitCompositeType(const DICompositeType *CTy);
   void visitStructType(const DICompositeType *STy, bool IsStruct);
   void visitArrayType(const DICompositeType *ATy);
